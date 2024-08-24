@@ -5,6 +5,7 @@ from myapp.serializers import *
 from myapp.models import *
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from .utils import load_model
 
 @api_view(['POST'])
 def create_custom_user(request):
@@ -138,4 +139,77 @@ def delete_bank_account(request, pk):
     if request.method == 'DELETE':
         bank_account.delete()
         return Response({"status": "ok", "message": "User deleted successfully"},status=status.HTTP_204_NO_CONTENT)
+    
 
+@api_view(['POST'])
+def create_transaction(request):
+    serializer = TransactionSerializer(data=request.data)
+    if serializer.is_valid():
+        # Extract the provided amount
+        amount = serializer.validated_data['amount']
+        
+        # Assuming 'nameOrig' identifies the customer, and using it to fetch previous transaction balances
+        nameOrig = serializer.validated_data['nameOrig']
+
+        # Fetch the last transaction of the customer, if available
+        last_transaction = Transaction.objects.filter(nameOrig=nameOrig).order_by('-id').first()
+
+        if last_transaction:
+            oldbalanceOrg = last_transaction.newbalanceOrig
+            oldbalanceDest = last_transaction.newbalanceDest
+        else:
+            # Default values for first transaction (e.g., 0 or some other initial values)
+            oldbalanceOrg = 200000.00  # Initial balance of 2 lakhs
+            oldbalanceDest = 200000.00  # Initial balance of 2 lakhs
+
+        # Calculate new balances after the transaction
+        newbalanceOrig = oldbalanceOrg - amount
+        newbalanceDest = oldbalanceDest + amount
+
+        # Calculate total balance after transaction (if needed globally)
+        total_balance_after_transaction = newbalanceOrig + newbalanceDest
+
+        # Load the logistic regression model
+        model = load_model()
+
+        # Prepare the features for fraud detection
+        features = [
+            amount,
+            oldbalanceOrg,
+            newbalanceOrig,
+            oldbalanceDest,
+            newbalanceDest
+        ]
+
+        # Predict whether the transaction is fraudulent
+        prediction = model.predict([features])
+        is_fraud = bool(prediction[0])
+
+        # Save the transaction with the calculated fields
+        transaction = serializer.save(
+            oldbalanceOrg=oldbalanceOrg,
+            newbalanceOrig=newbalanceOrig,
+            oldbalanceDest=oldbalanceDest,
+            newbalanceDest=newbalanceDest,
+            total_balance=total_balance_after_transaction,
+            is_fraud=is_fraud,
+            isFlaggedFraud=0.0  # Set default value for isFlaggedFraud
+        )
+
+        return Response({
+            'transaction_id': transaction.id,
+            'amount': amount,
+            'nameOrig': nameOrig,
+            'oldbalanceOrg': oldbalanceOrg,
+            'newbalanceOrig': newbalanceOrig,
+            'oldbalanceDest': oldbalanceDest,
+            'newbalanceDest': newbalanceDest,
+            'ac_name': transaction.ac_name,
+            'ifsc_code': transaction.ifsc_code,
+            'recipient_name': transaction.recipient_name,
+            'transaction_type': transaction.transaction_type,
+            'total_balance': total_balance_after_transaction,
+            'is_fraud': is_fraud,
+            'isFlaggedFraud': transaction.isFlaggedFraud
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -34,6 +34,8 @@ urlpatterns = [
     path('bankaccount/detail/<int:pk>/', bank_account_detail, name='bankaccount-detail'),
     path('bankaccount/delete/<int:pk>/', delete_bank_account, name='bankaccount-delete'),
 
+    path('transaction/create/', create_transaction, name='create_transaction'),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
