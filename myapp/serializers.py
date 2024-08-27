@@ -41,10 +41,26 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
 
 class BankSerializer(serializers.ModelSerializer):
-    class Meta:
-        model=BankAccount
-        fields="__all__"
+    user_details = serializers.SerializerMethodField()
 
+    class Meta:
+        model = BankAccount
+        fields = ['account_number', 'account_holder_name', 'bank_name', 'branch_name', 'ifsc_code', 'user_id', 'user_details']
+
+    def get_user_details(self, obj):
+        try:
+            user = CustomUser.objects.get(id=obj.user_id)
+
+            print(f"Found user: {user}")  # Debugging output
+            return {
+                'id': user.id,
+                'name': user.name,
+                'email': user.email,
+                'phone': user.phone,
+            }
+        except CustomUser.DoesNotExist:
+            print(f"User with id {obj.user_id} does not exist.")  # Debugging output
+            return None
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:

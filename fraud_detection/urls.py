@@ -28,11 +28,11 @@ urlpatterns = [
     path('login/', login_user, name='login'),
 
 
-    path('bankaccounts/create/', create_bank_account, name='bankaccount-create'),
-    path('bankaccounts/', list_bank_accounts, name='bankaccount-list'),
-    path('bankaccount/upadate/<int:pk>/', update_bank_account, name='bankaccount-update'),
+    path('bankaccounts/create/<int:user_id>/', create_bank_account, name='bankaccount-create'),
+    path('bankaccounts/<int:user_id>/', list_bank_accounts, name='bankaccount-list'),
+    path('bankaccount/upadate/<int:user_id>/<int:account_id>/', update_bank_account, name='bankaccount-update'),
     path('bankaccount/detail/<int:pk>/', bank_account_detail, name='bankaccount-detail'),
-    path('bankaccount/delete/<int:pk>/', delete_bank_account, name='bankaccount-delete'),
+
 
     path('transaction/create/', create_transaction, name='create_transaction'),
 

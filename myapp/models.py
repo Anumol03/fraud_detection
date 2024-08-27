@@ -23,6 +23,7 @@ class BankAccount(models.Model):
     bank_name = models.CharField(max_length=100)  
     branch_name = models.CharField(max_length=100) 
     ifsc_code = models.CharField(max_length=11)  
+    user_id=models.PositiveIntegerField(null=True,blank=True)
     
     def __str__(self):
         return f"{self.account_holder_name}"
