@@ -142,16 +142,21 @@ def update_bank_account(request, user_id, account_id):
 
 
 @api_view(['GET'])
-def bank_account_detail(request, pk):
+def bank_account_detail(request, user_id, account_id):
     try:
-        bank_account = BankAccount.objects.get(pk=pk)
+        # Retrieve the specific bank account associated with the user_id and account_id
+        bank_account = BankAccount.objects.get(user_id=user_id, id=account_id)
     except BankAccount.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"status": "error", "message": "Bank account not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-        serializer = BankSerializer(bank_account)
-        return Response({"status":"ok","message":"account details retrived successfully","data":serializer.data})
-    
+    # Serialize the bank account details
+    serializer = BankSerializer(bank_account)
+    return Response({
+        "status": "ok",
+        "message": "Bank account retrieved successfully",
+        "data": serializer.data
+    }, status=status.HTTP_200_OK)
+
 
 
 @api_view(['POST'])
