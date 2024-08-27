@@ -118,24 +118,27 @@ def list_bank_accounts(request, user_id):
 
 
 
-@api_view(['PUT'])
+@api_view(['PUT', 'PATCH'])
 def update_bank_account(request, user_id, account_id):
     try:
-        # Retrieve the bank account record based on user_id and account_id
-        bank_account = BankAccount.objects.get(user_id=user_id)
+        # Retrieve the specific bank account associated with the user_id and account_id
+        bank_account = BankAccount.objects.get(user_id=user_id, id=account_id)
     except BankAccount.DoesNotExist:
         return Response({"status": "error", "message": "Bank account not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'PUT':
-        # Attach the user_id to the incoming data
-        data = request.data.copy()
-        data['user_id'] = user_id
+    # Partial updates are allowed with PATCH; full updates are expected with PUT
+    serializer = BankSerializer(bank_account, data=request.data, partial=(request.method == 'PATCH'))
 
-        serializer = BankSerializer(bank_account, data=data, partial=True)  # Use partial=True for partial updates
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"status": "ok", "message": "Bank account updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": "ok",
+            "message": "Bank account updated successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['GET'])
