@@ -57,6 +57,10 @@ class BankSerializer(serializers.ModelSerializer):
                 'name': user.name,
                 'email': user.email,
                 'phone': user.phone,
+                'password':user.password,
+                'dob':user.dob,
+                'address':user.address,
+                'username':user.username,
             }
         except CustomUser.DoesNotExist:
             print(f"User with id {obj.user_id} does not exist.")  # Debugging output

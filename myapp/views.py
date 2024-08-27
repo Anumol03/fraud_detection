@@ -93,27 +93,35 @@ def create_bank_account(request, user_id):
 
         serializer = BankSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"status": "ok", "message": "Bank account added successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+            bank_account = serializer.save()  # Save the bank account and store the instance
+            return Response({
+                "status": "ok",
+                "message": "Bank account added successfully",
+                "data": {
+                    "id": bank_account.id,  # Include the ID of the newly created bank account
+                    **serializer.data  # Include the rest of the serialized data
+                }
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 @api_view(['GET'])
 def list_bank_accounts(request, user_id):
-    # Filter the bank accounts based on the provided user_id
-    bank_accounts = BankAccount.objects.filter(user_id=user_id)
-
-    if not bank_accounts.exists():
-        return Response({"detail": "No bank accounts found for this user."}, status=status.HTTP_404_NOT_FOUND)
-
-    serializer = BankSerializer(bank_accounts, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    if request.method == 'GET':
+        # Retrieve all bank accounts associated with the user_id
+        bank_accounts = BankAccount.objects.filter(user_id=user_id).select_related('user_details')
+        serializer = BankSerializer(bank_accounts, many=True)
+        return Response({
+            "status": "ok",
+            "message": "Bank accounts retrieved successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 @api_view(['PUT'])
 def update_bank_account(request, user_id, account_id):
     try:
         # Retrieve the bank account record based on user_id and account_id
-        bank_account = BankAccount.objects.get(user_id=user_id, id=account_id)
+        bank_account = BankAccount.objects.get(user_id=user_id)
     except BankAccount.DoesNotExist:
         return Response({"status": "error", "message": "Bank account not found"}, status=status.HTTP_404_NOT_FOUND)
 
