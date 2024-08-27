@@ -108,13 +108,14 @@ def create_bank_account(request, user_id):
 def list_bank_accounts(request, user_id):
     if request.method == 'GET':
         # Retrieve all bank accounts associated with the user_id
-        bank_accounts = BankAccount.objects.filter(user_id=user_id).select_related('user_details')
+        bank_accounts = BankAccount.objects.filter(user_id=user_id)
         serializer = BankSerializer(bank_accounts, many=True)
         return Response({
             "status": "ok",
             "message": "Bank accounts retrieved successfully",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+
 
 
 @api_view(['PUT'])
