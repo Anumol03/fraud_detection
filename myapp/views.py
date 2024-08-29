@@ -6,6 +6,9 @@ from myapp.models import *
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import load_model
+from decimal import Decimal
+import random
+
 
 @api_view(['POST'])
 def create_custom_user(request):
@@ -159,57 +162,62 @@ def bank_account_detail(request, user_id, account_id):
 
 
 
+
 @api_view(['POST'])
-def create_transaction(request):
-    serializer = TransactionSerializer(data=request.data)
+def create_transaction(request, user_id):
+    # Add the user_id to the incoming data
+    data = request.data.copy()
+    data['user_id'] = user_id
+
+    serializer = TransactionSerializer(data=data)
     if serializer.is_valid():
         # Extract the provided amount
         amount = serializer.validated_data['amount']
         
-        # Assuming 'nameOrig' identifies the customer, and using it to fetch previous transaction balances
-        nameOrig = serializer.validated_data['nameOrig']
+        # Convert amount to Decimal if it's not already
+        amount = Decimal(str(amount))
 
-        # Fetch the last transaction of the customer, if available
-        last_transaction = Transaction.objects.filter(nameOrig=nameOrig).order_by('-id').first()
-
-        if last_transaction:
-            oldbalanceOrg = last_transaction.newbalanceOrig
-            oldbalanceDest = last_transaction.newbalanceDest
-        else:
-            # Default values for first transaction (e.g., 0 or some other initial values)
-            oldbalanceOrg = 200000.00  # Initial balance of 2 lakhs
-            oldbalanceDest = 200000.00  # Initial balance of 2 lakhs
+        # Generate random values for oldbalanceOrg based on provided examples
+        oldbalanceOrg_choices = [
+            Decimal('170136.0'), Decimal('21249.0'), Decimal('181.0'), 
+            Decimal('23647.0'), Decimal('106071.0')
+        ]
+        oldbalanceOrg = random.choice(oldbalanceOrg_choices)
+        
+        # Generate random values for oldbalanceDest based on provided examples
+        oldbalanceDest_choices = [
+            Decimal('0.0'), Decimal('21182.0'), Decimal('173527.1'),
+            Decimal('110696.18'),Decimal('0.0')
+        ]
+        oldbalanceDest = random.choice(oldbalanceDest_choices)
 
         # Calculate new balances after the transaction
-        newbalanceOrig = oldbalanceOrg - amount
-        newbalanceDest = oldbalanceDest + amount
-
-        # Calculate total balance after transaction (if needed globally)
-        total_balance_after_transaction = newbalanceOrig + newbalanceDest
+        newbalanceOrig = oldbalanceOrg - amount  # Both are Decimal
+        newbalanceDest = oldbalanceDest + amount  # Both are Decimal
 
         # Load the logistic regression model
         model = load_model()
 
         # Prepare the features for fraud detection
         features = [
-            amount,
-            oldbalanceOrg,
-            newbalanceOrig,
-            oldbalanceDest,
-            newbalanceDest
+            float(amount),          # Amount of the transaction
+            float(oldbalanceOrg),   # Balance before the transaction
+            float(newbalanceOrig),  # New balance after the transaction
+            float(oldbalanceDest),  # Initial balance of recipient before the transaction
+            float(newbalanceDest),  # New balance of recipient after the transaction
+            float(serializer.validated_data.get('isFlaggedFraud', 0.0))  # Include isFlaggedFraud
         ]
 
         # Predict whether the transaction is fraudulent
         prediction = model.predict([features])
         is_fraud = bool(prediction[0])
 
-        # Save the transaction with the calculated fields
+        # Save the transaction with the calculated fields and user_id
         transaction = serializer.save(
             oldbalanceOrg=oldbalanceOrg,
             newbalanceOrig=newbalanceOrig,
             oldbalanceDest=oldbalanceDest,
             newbalanceDest=newbalanceDest,
-            total_balance=total_balance_after_transaction,
             is_fraud=is_fraud,
             isFlaggedFraud=0.0  # Set default value for isFlaggedFraud
         )
@@ -217,17 +225,17 @@ def create_transaction(request):
         return Response({
             'transaction_id': transaction.id,
             'amount': amount,
-            'nameOrig': nameOrig,
+            'nameOrig': transaction.nameOrig,
             'oldbalanceOrg': oldbalanceOrg,
             'newbalanceOrig': newbalanceOrig,
             'oldbalanceDest': oldbalanceDest,
             'newbalanceDest': newbalanceDest,
-            'ac_name': transaction.ac_name,
+            'ac_number': transaction.ac_number,
             'ifsc_code': transaction.ifsc_code,
-            'recipient_name': transaction.recipient_name,
             'transaction_type': transaction.transaction_type,
-            'total_balance': total_balance_after_transaction,
             'is_fraud': is_fraud,
-            'isFlaggedFraud': transaction.isFlaggedFraud
+            'isFlaggedFraud': transaction.isFlaggedFraud,
+            'user_id': transaction.user_id  # Include user_id in the response
         }, status=status.HTTP_201_CREATED)
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

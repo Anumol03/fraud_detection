@@ -34,7 +34,7 @@ urlpatterns = [
     path('bankaccount/detail/<int:user_id>/<int:account_id>/', bank_account_detail, name='bankaccount-detail'),
 
 
-    path('transaction/create/', create_transaction, name='create_transaction'),
+    path('transaction/create/<int:user_id>/', create_transaction, name='create_transaction'),
 
 ]
 if settings.DEBUG:
