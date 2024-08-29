@@ -187,9 +187,16 @@ def create_transaction(request, user_id):
         # Generate random values for oldbalanceDest based on provided examples
         oldbalanceDest_choices = [
             Decimal('0.0'), Decimal('21182.0'), Decimal('173527.1'),
-            Decimal('110696.18'),Decimal('0.0')
+            Decimal('110696.18'), Decimal('0.0')
         ]
         oldbalanceDest = random.choice(oldbalanceDest_choices)
+
+        # Check if the amount is greater than the old balance
+        if amount > oldbalanceOrg:
+            return Response({
+                'status': 'error',
+                'message': 'Insufficient balance for this transaction.'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # Calculate new balances after the transaction
         newbalanceOrig = oldbalanceOrg - amount  # Both are Decimal
@@ -225,6 +232,7 @@ def create_transaction(request, user_id):
         return Response({
             'transaction_id': transaction.id,
             'amount': amount,
+            'date': transaction.date,
             'nameOrig': transaction.nameOrig,
             'oldbalanceOrg': oldbalanceOrg,
             'newbalanceOrig': newbalanceOrig,
@@ -238,4 +246,37 @@ def create_transaction(request, user_id):
             'user_id': transaction.user_id  # Include user_id in the response
         }, status=status.HTTP_201_CREATED)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response({'status': 'ok', 'message': 'transaction created successfully', 'data': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def list_transactions(request, user_id):
+    # Filter transactions by user_id
+    transactions = Transaction.objects.filter(user_id=user_id)
+
+    # Serialize the transaction data
+    serializer = TransactionSerializer(transactions, many=True)
+
+    return Response({
+        'status': 'ok',
+        'message':'transaction history',
+        'data': serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+
+@api_view(['GET'])
+def transaction_detail(request, user_id, transaction_id):
+    try:
+        # Retrieve the specific transaction by ID and user_id
+        transaction = Transaction.objects.get(id=transaction_id, user_id=user_id)
+        serializer = TransactionSerializer(transaction)
+        
+        return Response({
+            'status': 'ok',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    except Transaction.DoesNotExist:
+        return Response({
+            'status': 'error',
+            'message': 'Transaction not found'
+        }, status=status.HTTP_404_NOT_FOUND)

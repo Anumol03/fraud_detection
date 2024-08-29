@@ -49,6 +49,7 @@ class Transaction(models.Model):
     isFlaggedFraud = models.DecimalField(max_digits=2, decimal_places=1, default=0.0)  # Additional field for flagged fraud
     
     user_id = models.PositiveIntegerField(null=True, blank=True)  # User ID linked to the transaction
+    date=models.DateField(auto_now=True)
 
     def __str__(self):
         return f"Transaction {self.id} - {self.amount}"
