@@ -41,6 +41,7 @@ urlpatterns = [
 
 
     path('random/', random_advice_view, name='random-advice'),
+    path('api/password_reset/', password_reset_view, name='password_reset'),
 
 ]
 if settings.DEBUG:

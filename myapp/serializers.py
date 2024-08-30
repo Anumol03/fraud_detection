@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.conf import settings
 from myapp.models import *
+from django.contrib.auth import get_user_model
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -70,3 +71,25 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__' 
+
+
+CustomUser = get_user_model()
+
+class PasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_email(self, value):
+        try:
+            user = CustomUser.objects.get(email=value)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("User with this email does not exist.")
+        return value
+
+    def save(self):
+        email = self.validated_data['email']
+        new_password = self.validated_data['new_password']
+
+        user = CustomUser.objects.get(email=email)
+        user.set_password(new_password)
+        user.save()
