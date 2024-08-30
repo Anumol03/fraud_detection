@@ -8,9 +8,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import load_model
 from decimal import Decimal
 import random
+from django.core.mail import send_mail
+from django.conf import settings
+from rest_framework.decorators import permission_classes
+from rest_framework import permissions
+from rest_framework.permissions import AllowAny
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def create_custom_user(request):
     if request.method == 'POST':
         serializer = CustomUserSerializer(data=request.data, context={'request': request})
@@ -66,6 +72,7 @@ def delete_custom_user(request, user_id):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def login_user(request):
     username = request.data.get('username')
     password = request.data.get('password')
@@ -164,6 +171,7 @@ def bank_account_detail(request, user_id, account_id):
 
 
 @api_view(['POST'])
+
 def create_transaction(request, user_id):
     # Add the user_id to the incoming data
     data = request.data.copy()
@@ -177,19 +185,31 @@ def create_transaction(request, user_id):
         # Convert amount to Decimal if it's not already
         amount = Decimal(str(amount))
 
-        # Generate random values for oldbalanceOrg based on provided examples
-        oldbalanceOrg_choices = [
-            Decimal('170136.0'), Decimal('21249.0'), Decimal('181.0'), 
-            Decimal('23647.0'), Decimal('106071.0')
-        ]
-        oldbalanceOrg = random.choice(oldbalanceOrg_choices)
+        # Define oldbalanceOrg choices as tuples
+        oldbalanceOrg_choices = (
+            (Decimal('170136.0'), 'Option 1'),
+            (Decimal('21249.0'), 'Option 2'),
+            (Decimal('181.0'), 'Option 3'),
+            (Decimal('23647.0'), 'Option 4'),
+            (Decimal('106071.0'), 'Option 5')
+        )
         
-        # Generate random values for oldbalanceDest based on provided examples
-        oldbalanceDest_choices = [
-            Decimal('0.0'), Decimal('21182.0'), Decimal('173527.1'),
-            Decimal('110696.18'), Decimal('0.0')
-        ]
-        oldbalanceDest = random.choice(oldbalanceDest_choices)
+        # Randomly select index from the tuple and unpack
+        index_org = random.randint(0, len(oldbalanceOrg_choices) - 1)
+        oldbalanceOrg, _ = oldbalanceOrg_choices[index_org]  # Unpacking the choice
+
+        # Define oldbalanceDest choices as tuples
+        oldbalanceDest_choices = (
+            (Decimal('0.0'), 'Option A'),
+            (Decimal('21182.0'), 'Option B'),
+            (Decimal('173527.1'), 'Option C'),
+            (Decimal('110696.18'), 'Option D'),
+            (Decimal('0.0'), 'Option E')
+        )
+        
+        # Randomly select index from the tuple and unpack
+        index_dest = random.randint(0, len(oldbalanceDest_choices) - 1)
+        oldbalanceDest, _ = oldbalanceDest_choices[index_dest]  # Unpacking the choice
 
         # Check if the amount is greater than the old balance
         if amount > oldbalanceOrg:
@@ -219,6 +239,21 @@ def create_transaction(request, user_id):
         prediction = model.predict([features])
         is_fraud = bool(prediction[0])
 
+        # If the transaction is marked as fraudulent, send an email
+        if is_fraud:
+            user_email = request.user.email  # Now safe to access
+            send_mail(
+                'Fraudulent Transaction Warning',
+                'Dear user,\n\nYour recent transaction attempt has been flagged as potentially fraudulent. Please check your account for unauthorized activities.\n\nBest regards,\nYour Finance Team',
+                settings.DEFAULT_FROM_EMAIL,
+                [user_email],
+                fail_silently=False,
+            )
+            return Response({
+                'status': 'error',
+                'message': 'Transaction not possible due to fraud detection. A warning email has been sent.',
+            }, status=status.HTTP_403_FORBIDDEN)  # Return a forbidden status
+
         # Save the transaction with the calculated fields and user_id
         transaction = serializer.save(
             oldbalanceOrg=oldbalanceOrg,
@@ -247,7 +282,6 @@ def create_transaction(request, user_id):
         }, status=status.HTTP_201_CREATED)
 
     return Response({'status': 'ok', 'message': 'transaction created successfully', 'data': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
 @api_view(['GET'])
 def list_transactions(request, user_id):
     # Filter transactions by user_id

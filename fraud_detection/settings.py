@@ -149,3 +149,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'myapp.CustomUser'
 
 CORS_ALLOWED_ORIGINS=['http://localhost:3000']
+
+
+EMAIL_BACKEND ='django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST ='smtp.gmail.com'
+EMAIL_HOST_USER ='anumol030101@gmail.com'
+EMAIL_HOST_PASSWORD ='qwcldnelalwjfaqm'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': (
+       'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    # Other DRF settings
+}
