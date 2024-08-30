@@ -38,6 +38,10 @@ urlpatterns = [
     path('transaction/list/<int:user_id>/', list_transactions, name='list_transactions'),
     path('transactions/detail/<int:user_id>/<int:transaction_id>/', transaction_detail, name='transaction_detail'),
 
+
+
+    path('random/', random_advice_view, name='random-advice'),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

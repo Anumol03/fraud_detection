@@ -280,3 +280,28 @@ def transaction_detail(request, user_id, transaction_id):
             'status': 'error',
             'message': 'Transaction not found'
         }, status=status.HTTP_404_NOT_FOUND)
+
+
+
+ADVICE_LIST = [
+    {"id": 1, "category": "security", "text": "Always use two-factor authentication."},
+    {"id": 2, "category": "transaction", "text": "Double-check the recipient's details before sending funds."},
+    {"id": 3, "category": "privacy", "text": "Avoid using public Wi-Fi for sensitive transactions."},
+    {"id": 4, "category": "awareness", "text": "Be cautious of phishing emails."},
+    {"id": 5, "category": "security", "text": "Keep your software updated to protect against vulnerabilities."},
+    {"id": 6, "category": "finance", "text": "Create a budget and stick to it."},
+    {"id": 7, "category": "investment", "text": "Diversify your investments to reduce risk."},
+    {"id": 8, "category": "planning", "text": "Always have an emergency fund for unexpected expenses."},
+    {"id": 9, "category": "spending", "text": "Limit impulse purchases to stay within budget."},
+    {"id": 10, "category": "savings", "text": "Aim to save at least 20% of your income."},
+    {"id": 11, "category": "education", "text": "Keep learning about personal finance."},
+    {"id": 12, "category": "goal-setting", "text": "Set clear financial goals to stay focused."},
+    {"id": 13, "category": "debt", "text": "Pay off high-interest debt as soon as possible."},
+    {"id": 14, "category": "shopping", "text": "Use a shopping list to avoid unnecessary purchases."},
+    {"id": 15, "category": "financial literacy", "text": "Read books about personal finance and investing."},
+]
+
+@api_view(['GET'])
+def random_advice_view(request):
+    random_advice = random.choice(ADVICE_LIST)  
+    return Response(random_advice)
