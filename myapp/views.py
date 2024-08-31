@@ -14,6 +14,7 @@ from rest_framework.decorators import permission_classes
 from rest_framework import permissions
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
+import logging
 
 
 @api_view(['POST'])
@@ -170,97 +171,105 @@ def bank_account_detail(request, user_id, account_id):
 
 
 
+logger = logging.getLogger(__name__)
+
 @api_view(['POST'])
 def create_transaction(request, user_id):
-    # Add the user_id to the incoming data
     data = request.data.copy()
     data['user_id'] = user_id
 
     serializer = TransactionSerializer(data=data)
     if serializer.is_valid():
-        # Extract the provided amount
-        amount = serializer.validated_data['amount']
-        
-        # Convert amount to Decimal if it's not already
-        amount = Decimal(str(amount))
+        amount = Decimal(str(serializer.validated_data['amount']))
 
-        # Define oldbalanceOrg choices as tuples
+        # Randomly select oldbalanceOrg
         oldbalanceOrg_choices = (
             (Decimal('170136.0'), 'Option 1'),
             (Decimal('21249.0'), 'Option 2'),
             (Decimal('181.0'), 'Option 3'),
             (Decimal('23647.0'), 'Option 4'),
-            (Decimal('106071.0'), 'Option 5')
+            (Decimal('106071.0'), 'Option 5'),
+            (Decimal('53860.00'), 'Option 6')
         )
-        
-        # Randomly select index from the tuple and unpack
         index_org = random.randint(0, len(oldbalanceOrg_choices) - 1)
-        oldbalanceOrg, _ = oldbalanceOrg_choices[index_org]  # Unpacking the choice
+        oldbalanceOrg, _ = oldbalanceOrg_choices[index_org]
 
-        # Define oldbalanceDest choices as tuples
+        # Randomly select oldbalanceDest
         oldbalanceDest_choices = (
             (Decimal('0.0'), 'Option A'),
             (Decimal('21182.0'), 'Option B'),
             (Decimal('173527.1'), 'Option C'),
             (Decimal('110696.18'), 'Option D'),
-            (Decimal('0.0'), 'Option E')
+            (Decimal('0.0'), 'Option E'),
+            (Decimal('0.0'), 'Option F'),
+            (Decimal('0.0'), 'Option G')
         )
-        
-        # Randomly select index from the tuple and unpack
         index_dest = random.randint(0, len(oldbalanceDest_choices) - 1)
-        oldbalanceDest, _ = oldbalanceDest_choices[index_dest]  # Unpacking the choice
+        oldbalanceDest, _ = oldbalanceDest_choices[index_dest]
 
-        # Check if the amount is greater than the old balance
         if amount > oldbalanceOrg:
             return Response({
                 'status': 'error',
                 'message': 'Insufficient balance for this transaction.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Calculate new balances after the transaction
-        newbalanceOrig = oldbalanceOrg - amount  # Both are Decimal
-        newbalanceDest = oldbalanceDest + amount  # Both are Decimal
+        newbalanceOrig = oldbalanceOrg - amount
+        newbalanceDest = oldbalanceDest + amount
 
-        # Load the logistic regression model
+        # Load the fraud detection model
         model = load_model()
-
-        # Prepare the features for fraud detection
         features = [
-            float(amount),          # Amount of the transaction
-            float(oldbalanceOrg),   # Balance before the transaction
-            float(newbalanceOrig),  # New balance after the transaction
-            float(oldbalanceDest),  # Initial balance of recipient before the transaction
-            float(newbalanceDest),  # New balance of recipient after the transaction
-            float(serializer.validated_data.get('isFlaggedFraud', 0.0))  # Include isFlaggedFraud
+            float(amount),
+            float(oldbalanceOrg),
+            float(newbalanceOrig),
+            float(oldbalanceDest),
+            float(newbalanceDest),
+            float(serializer.validated_data.get('isFlaggedFraud', 0.0))
         ]
 
-        # Predict whether the transaction is fraudulent
         prediction = model.predict([features])
         is_fraud = bool(prediction[0])
 
-        # If the transaction is marked as fraudulent, send an email
+        # Retrieve the user's email using user_id if not authenticated
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            user_email = user.email
+        except CustomUser.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'User not found.',
+            }, status=status.HTTP_404_NOT_FOUND)
+
         if is_fraud:
-            user_email = request.user.email  # Now safe to access
-            send_mail(
-                'Fraudulent Transaction Warning',
-                'Dear user,\n\nYour recent transaction attempt has been flagged as potentially fraudulent. Please check your account for unauthorized activities.\n\nBest regards,\nYour Finance Team',
-                settings.DEFAULT_FROM_EMAIL,
-                [user_email],
-                fail_silently=False,
-            )
+            if user_email:
+                try:
+                    send_mail(
+                        'Fraudulent Transaction Warning',
+                        'Dear user,\n\nYour recent transaction attempt has been flagged as potentially fraudulent. '
+                        'Please check your account for unauthorized activities.\n\nBest regards,\nYour Finance Team',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user_email],
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send email: {e}")
+                    return Response({
+                        'status': 'error',
+                        'message': f'Transaction not possible due to fraud detection. Failed to send warning email: {str(e)}',
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             return Response({
                 'status': 'error',
                 'message': 'Transaction not possible due to fraud detection. A warning email has been sent.',
-            }, status=status.HTTP_403_FORBIDDEN)  # Return a forbidden status
+            }, status=status.HTTP_403_FORBIDDEN)
 
-        # Save the transaction with the calculated fields and user_id
         transaction = serializer.save(
             oldbalanceOrg=oldbalanceOrg,
             newbalanceOrig=newbalanceOrig,
             oldbalanceDest=oldbalanceDest,
             newbalanceDest=newbalanceDest,
             is_fraud=is_fraud,
-            isFlaggedFraud=0.0  # Set default value for isFlaggedFraud
+            isFlaggedFraud=0.0
         )
 
         return Response({
@@ -277,10 +286,15 @@ def create_transaction(request, user_id):
             'transaction_type': transaction.transaction_type,
             'is_fraud': is_fraud,
             'isFlaggedFraud': transaction.isFlaggedFraud,
-            'user_id': transaction.user_id  # Include user_id in the response
+            'user_id': transaction.user_id
         }, status=status.HTTP_201_CREATED)
 
-    return Response({'status': 'ok', 'message': 'transaction created successfully', 'data': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({
+        'status': 'error',
+        'message': 'Invalid data',
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['GET'])
 def list_transactions(request, user_id):
     # Filter transactions by user_id
