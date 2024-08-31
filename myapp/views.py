@@ -17,7 +17,6 @@ from rest_framework.permissions import IsAuthenticated
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
 def create_custom_user(request):
     if request.method == 'POST':
         serializer = CustomUserSerializer(data=request.data, context={'request': request})
@@ -28,7 +27,6 @@ def create_custom_user(request):
     
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def list_custom_users(request):
     users = CustomUser.objects.all()  
     serializer = CustomUserSerializer(users, many=True, context={'request': request}) 
@@ -36,7 +34,6 @@ def list_custom_users(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def retrieve_custom_user(request, user_id):
     try:
         user = CustomUser.objects.get(id=user_id)  
@@ -49,7 +46,6 @@ def retrieve_custom_user(request, user_id):
 
 
 @api_view(['PUT'])
-@permission_classes([IsAuthenticated])
 def update_custom_user(request, user_id):
     try:
         user = CustomUser.objects.get(id=user_id)
@@ -64,7 +60,6 @@ def update_custom_user(request, user_id):
 
 
 @api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
 def delete_custom_user(request, user_id):
     try:
         user = CustomUser.objects.get(id=user_id)
@@ -78,7 +73,6 @@ def delete_custom_user(request, user_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
 def login_user(request):
     username = request.data.get('username')
     password = request.data.get('password')
@@ -101,7 +95,6 @@ def login_user(request):
         return Response({'error': 'Invalid email or password'}, status=status.HTTP_401_UNAUTHORIZED)
     
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def create_bank_account(request, user_id):
     if request.method == 'POST':
         # Attach the user_id to the incoming data
@@ -122,7 +115,6 @@ def create_bank_account(request, user_id):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def list_bank_accounts(request, user_id):
     if request.method == 'GET':
         # Retrieve all bank accounts associated with the user_id
@@ -137,7 +129,6 @@ def list_bank_accounts(request, user_id):
 
 
 @api_view(['PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])
 def update_bank_account(request, user_id, account_id):
     try:
         # Retrieve the specific bank account associated with the user_id and account_id
@@ -161,7 +152,6 @@ def update_bank_account(request, user_id, account_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def bank_account_detail(request, user_id, account_id):
     try:
         # Retrieve the specific bank account associated with the user_id and account_id
@@ -181,7 +171,6 @@ def bank_account_detail(request, user_id, account_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def create_transaction(request, user_id):
     # Add the user_id to the incoming data
     data = request.data.copy()
@@ -293,7 +282,6 @@ def create_transaction(request, user_id):
 
     return Response({'status': 'ok', 'message': 'transaction created successfully', 'data': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def list_transactions(request, user_id):
     # Filter transactions by user_id
     transactions = Transaction.objects.filter(user_id=user_id)
@@ -310,7 +298,6 @@ def list_transactions(request, user_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def transaction_detail(request, user_id, transaction_id):
     try:
         # Retrieve the specific transaction by ID and user_id
@@ -348,7 +335,6 @@ ADVICE_LIST = [
 ]
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def random_advice_view(request):
     random_advice = random.choice(ADVICE_LIST)  
     return Response(random_advice)
